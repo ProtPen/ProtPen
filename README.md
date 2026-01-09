@@ -10,6 +10,7 @@ This repository contains a pipeline for predicting and analyzing protein functio
 - [Scripts](#scripts)
 - [Usage](#usage)
 - [Output](#output)
+- [Modular Design](#modular-design-and-extensibility)
 
 ## Overview
 
@@ -33,7 +34,6 @@ The pipeline is intended to run on a Unix-based HPC system using SLURM and virtu
 ```bash
 git clone https://github.com/dmath21/ProtPen.git
 ```
-
 ## Pipeline Workflow
 
 1. **Run EggNOG-mapper** (`cli_eggnog.py`)  
@@ -96,3 +96,30 @@ sbatch run_merge.sh
 - `consolidated_foldseek_results.tsv`: Filtered and top Foldseek matches.
 - `eggnog_results.tsv`: Raw output from EggNOG-mapper.
 - AlphaFold `.pdb` files downloaded for input UniProt IDs.
+  
+## Modular Design and Extensibility
+
+ProtPen is designed as a **modular pipeline**, where each analysis step is implemented as an independent module that can be added, removed, or replaced without modifying the core codebase. Modules communicate exclusively through file-based inputs and outputs (primarily TSV and FASTA files), allowing users to customize the workflow for different datasets or analysis goals.
+
+### What Is a Module?
+
+Each ProtPen module:
+
+- Performs a single logical task (e.g., annotation, structure search, enrichment)
+- Is implemented as a Python module within the `protpen/` package
+- Exposes a command-line interface (CLI) via a `cli_*.py` wrapper
+- Accepts standardized input files and produces standardized output files
+
+The overall workflow is orchestrated by a shell script (e.g., `run_pipeline.sh`) that sequentially calls these CLI modules. There are no hard-coded dependencies between modules beyond expected input/output formats.
+
+### Removing a Module
+
+To remove a module from the pipeline, simply delete or comment out the corresponding CLI call in your pipeline script. Ensure that downstream steps do not require the removed module’s output.
+
+**Example: Skipping Foldseek enrichment**
+
+Remove the following line from your pipeline script:
+
+```bash
+python -m protpen.cli_enrich -i consolidated_foldseek_results.tsv -o enriched_foldseek_results.tsv
+```
