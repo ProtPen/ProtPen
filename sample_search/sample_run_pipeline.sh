@@ -50,17 +50,23 @@ FOLDSEEK_DB="/shared/rc/proteome/protpen/run_pipeline/pdb" # Path to pre-built F
 mkdir -p logs "$EGGNOG_DIR" "$PDB_DIR" "$FOLDSEEK_OUT" "$FOLDSEEK_TMP"
 
 ##############################################
-# Step 1: Functional Annotation with EggNOG-mapper
+# Step 1 and Steps 2-5 are independent of each other (EggNOG-mapper only
+# needs the input FASTA; the Foldseek branch doesn't need EggNOG output
+# until the final merge). EggNOG-mapper's runtime doesn't scale with CPU
+# count, so run it in the background while the Foldseek branch proceeds
+# on the rest of the allocated CPUs, and only join them before Step 6.
 ##############################################
-echo "Step 1: Running EggNOG-mapper..."
-python -m protpen.cli_eggnog -i "$INPUT_FASTA" -o "$EGGNOG_DIR" -p "eggnog" -t "$EGGNOG_TSV"
-if [ $? -ne 0 ]; then echo "EggNOG-mapper failed." && exit 1; fi
+
+echo "Step 1: Running EggNOG-mapper (in background)..."
+python -m protpen.cli_eggnog -i "$INPUT_FASTA" -o "$EGGNOG_DIR" -p "eggnog" -t "$EGGNOG_TSV" \
+  > logs/eggnog_step.log 2>&1 &
+EGGNOG_PID=$!
 
 ##############################################
 # Step 2: Download AlphaFold Structures for Input Proteins
 ##############################################
 echo "Step 2: Downloading AlphaFold PDBs..."
-python -m protpen.cli_download "$INPUT_FASTA" --output_folder "$PDB_DIR"
+python -m protpen.cli_download "$INPUT_FASTA" --output_folder "$PDB_DIR" --max_workers 16
 if [ $? -ne 0 ]; then echo "Download failed." && exit 1; fi
 
 ##############################################
@@ -74,15 +80,22 @@ if [ $? -ne 0 ]; then echo "Foldseek failed." && exit 1; fi
 # Step 4: Consolidate Foldseek Results (Filter & Rank Top Hits)
 ##############################################
 echo "Step 4: Consolidating Foldseek results..."
-python -m protpen.cli_consolidate_foldseek "$FOLDSEEK_OUT" "$FOLDSEEK_CONSOLIDATED" "$INPUT_FASTA" --top_x 5
+python -m protpen.cli_consolidate_foldseek "$FOLDSEEK_OUT" "$FOLDSEEK_CONSOLIDATED" "$INPUT_FASTA" --top_x 5 --max_workers 8
 if [ $? -ne 0 ]; then echo "Consolidation failed." && exit 1; fi
 
 ##############################################
 # Step 5: Enrich Foldseek Output with UniProt Annotations
 ##############################################
 echo "Step 5: Enriching Foldseek results..."
-python -m protpen.cli_enrich -i "$FOLDSEEK_CONSOLIDATED" -o "$FOLDSEEK_ENRICHED"
+python -m protpen.cli_enrich -i "$FOLDSEEK_CONSOLIDATED" -o "$FOLDSEEK_ENRICHED" --max_workers 16
 if [ $? -ne 0 ]; then echo "Enrichment failed." && exit 1; fi
+
+##############################################
+# Wait for the background EggNOG-mapper job before merging
+##############################################
+echo "Waiting for EggNOG-mapper (Step 1) to finish..."
+wait "$EGGNOG_PID"
+if [ $? -ne 0 ]; then echo "EggNOG-mapper failed (see logs/eggnog_step.log)." && exit 1; fi
 
 ##############################################
 # Step 6: Merge EggNOG and Foldseek Annotations
