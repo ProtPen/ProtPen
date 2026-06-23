@@ -40,48 +40,27 @@ def test_get_uniprot_info_reads_cached_json(tmp_path):
         mock_download.assert_not_called()
 
 
-@patch("protpen.enrich_utils.get_mapping_results")
-@patch("protpen.enrich_utils.poll_job")
-@patch("protpen.enrich_utils.submit_id_mapping")
-def test_id_mapping_functions(mock_submit, mock_poll, mock_results):
-    mock_submit.return_value = "mock_job_id"
-    mock_poll.return_value = True
-    mock_results.return_value = [
-        {"from": "4abc", "to": "P12345"},
-        {"from": "4xyz", "to": "Q99999"}
-    ]
-
-    job_id = enrich_utils.submit_id_mapping(["4abc", "4xyz"])
-    assert job_id == "mock_job_id"
-    assert enrich_utils.poll_job(job_id) is True
-    result = enrich_utils.get_mapping_results(job_id)
-    assert result[0]["from"] == "4abc"
-    assert result[0]["to"] == "P12345"
-
-def test_extract_pdb_ids():
-    input_str = "4is4-assembly1.cif.gz_H||4mdz-assembly1.cif.gz_A||5abc-assembly1.cif.gz"
-    expected = ["4is4", "4mdz", "5abc"]
-    assert enrich_utils.extract_pdb_ids(input_str) == expected
-
-
 def test_enrich_tsv(tmp_path):
     input_path = tmp_path / "test.tsv"
     output_path = tmp_path / "enriched.tsv"
 
-    # Write mock input
+    # Write mock input. Real Foldseek targets always include a chain
+    # suffix (e.g. "_H"), which enrich_tsv's pair_to_info is keyed on
+    # (pdb_id, chain_id), since a single PDB structure's chains can map to
+    # different UniProt entries.
     with open(input_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["query", "target"], delimiter="\t")
         writer.writeheader()
         writer.writerow({"query": "Q1", "target": "4is4-assembly1.cif.gz_H||4mdz-assembly1.cif.gz_A"})
-        writer.writerow({"query": "Q2", "target": "5abc-assembly1.cif.gz"})
+        writer.writerow({"query": "Q2", "target": "5abc-assembly1.cif.gz_A"})
 
-    pdb_to_info = {
-        "4is4": {"description": "desc1", "interpro": "ipr1", "supfam": "sf1"},
-        "4mdz": {"description": "desc2", "interpro": "ipr2", "supfam": "sf2"},
-        "5abc": {"description": "desc3", "interpro": "ipr3", "supfam": "sf3"},
+    pair_to_info = {
+        ("4is4", "H"): {"description": "desc1", "interpro": "ipr1", "supfam": "sf1"},
+        ("4mdz", "A"): {"description": "desc2", "interpro": "ipr2", "supfam": "sf2"},
+        ("5abc", "A"): {"description": "desc3", "interpro": "ipr3", "supfam": "sf3"},
     }
 
-    enrich_utils.enrich_tsv(input_path, output_path, pdb_to_info)
+    enrich_utils.enrich_tsv(input_path, output_path, pair_to_info)
 
     with open(output_path, newline="") as f:
         reader = csv.DictReader(f, delimiter="\t")
@@ -117,31 +96,3 @@ def test_get_uniprot_info_mocked(mock_get, tmp_path):
     assert result["supfam"] == "SF9999"
 
 
-@mock.patch("protpen.enrich_utils.requests.post")
-def test_submit_id_mapping(mock_post):
-    mock_post.return_value.status_code = 200
-    mock_post.return_value.json.return_value = {"jobId": "abc123"}
-    job_id = enrich_utils.submit_id_mapping(["4is4", "4mdz"])
-    assert job_id == "abc123"
-
-
-@mock.patch("protpen.enrich_utils.requests.get")
-def test_poll_job(mock_get):
-    mock_get.return_value.status_code = 200
-    mock_get.return_value.json.side_effect = [
-        {"jobStatus": "RUNNING"},
-        {"jobStatus": "FINISHED"}
-    ]
-    assert enrich_utils.poll_job("abc123") is True
-
-
-@mock.patch("protpen.enrich_utils.requests.get")
-def test_get_mapping_results(mock_get):
-    mock_get.return_value.status_code = 200
-    mock_get.return_value.json.side_effect = [
-        {"results": [{"from": "4is4", "to": "P12345"}], "nextCursor": "next123"},
-        {"results": [{"from": "4mdz", "to": "P67890"}]}
-    ]
-    results = enrich_utils.get_mapping_results("abc123")
-    assert len(results) == 2
-    assert results[0]["to"] == "P12345"
