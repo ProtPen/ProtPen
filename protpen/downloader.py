@@ -3,9 +3,36 @@ import requests
 import os
 import json
 import re
+import time
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+
+
+def _request_with_retry(method, url, retries=5, backoff=1.0, **kwargs):
+    """
+    Calls requests.get/requests.head with retries on transient connection
+    failures (dropped connections, timeouts, 429/5xx). Now that requests
+    fan out across many threads instead of one at a time, occasional
+    remote disconnects from UniProt/AlphaFoldDB under load are expected
+    and shouldn't take down the whole batch.
+    """
+    func = requests.get if method == "get" else requests.head
+    last_exc = None
+    for attempt in range(retries):
+        try:
+            response = func(url, **kwargs)
+        except requests.exceptions.RequestException as exc:
+            last_exc = exc
+        else:
+            if response.status_code not in (429, 500, 502, 503, 504):
+                return response
+            last_exc = None
+        if attempt < retries - 1:
+            time.sleep(backoff * (2 ** attempt))
+    if last_exc:
+        raise last_exc
+    return response
 
 
 def extract_protein_ids_from_fasta(file_in):
@@ -26,7 +53,11 @@ def extract_protein_ids_from_fasta(file_in):
 
 def download_uniprot_json(uniprot_id, output_file):
     url = f"https://rest.uniprot.org/uniprotkb/{uniprot_id}"
-    response = requests.get(url)
+    try:
+        response = _request_with_retry("get", url)
+    except requests.exceptions.RequestException as exc:
+        logging.error(f"UniProt request failed for {uniprot_id} after retries: {exc}")
+        return False
     if response.status_code == 200:
         with open(output_file, "w") as f:
             json.dump(response.json(), f, indent=2)
@@ -56,8 +87,8 @@ def download_alphafold_pdb(alphafold_id, output_folder, batch_size=10, max_versi
     def check_version(version):
         url = base_url + str(version) + ".pdb"
         try:
-            response = requests.head(url)
-        except requests.RequestException:
+            response = _request_with_retry("head", url)
+        except requests.exceptions.RequestException:
             return None
         return version if response.status_code == 200 else None
 
@@ -78,7 +109,11 @@ def download_alphafold_pdb(alphafold_id, output_folder, batch_size=10, max_versi
 
     url = base_url + str(found_version) + ".pdb"
     logging.info(f"Found structure for {alphafold_id} (v{found_version}). Downloading...")
-    response = requests.get(url)
+    try:
+        response = _request_with_retry("get", url)
+    except requests.exceptions.RequestException as exc:
+        logging.error(f"Failed to download structure for {alphafold_id} after retries: {exc}")
+        return None
     os.makedirs(output_folder, exist_ok=True)
     with open(pdb_path, "wb") as f:
         f.write(response.content)
@@ -86,6 +121,16 @@ def download_alphafold_pdb(alphafold_id, output_folder, batch_size=10, max_versi
 
 
 def _process_protein(pid, output_folder):
+    try:
+        return _process_protein_impl(pid, output_folder)
+    except Exception as exc:
+        # A single protein's network failure shouldn't take down the whole
+        # batch -- log it, mark it failed, and let the rest finish.
+        logging.error(f"Unexpected error processing {pid}: {exc}")
+        return pid, "error"
+
+
+def _process_protein_impl(pid, output_folder):
     logging.info(f"Processing {pid}...")
     json_path = os.path.join(output_folder, f"{pid}.json")
 
@@ -131,9 +176,14 @@ def download_structures_from_fasta(file_in, output_folder="pdb_files", max_worke
     # so fan them out across threads instead of downloading one protein
     # at a time.
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(_process_protein, pid, output_folder) for pid in protein_ids]
-        for future in as_completed(futures):
-            pid, status = future.result()
+        future_to_pid = {executor.submit(_process_protein, pid, output_folder): pid for pid in protein_ids}
+        for future in as_completed(future_to_pid):
+            pid = future_to_pid[future]
+            try:
+                pid, status = future.result()
+            except Exception as exc:
+                logging.error(f"Unexpected error processing {pid}: {exc}")
+                status = "error"
             downloaded[pid] = status
 
     return downloaded
