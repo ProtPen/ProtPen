@@ -3,7 +3,7 @@ import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
-def _run_one(pdb_file, pdb_dir, output_dir, tmp_dir, db, isolate_tmp=False):
+def _run_one(pdb_file, pdb_dir, output_dir, tmp_dir, db, isolate_tmp=False, threads=None):
     pdb_path = os.path.join(pdb_dir, pdb_file)
     output_file = os.path.join(output_dir, f"{os.path.splitext(pdb_file)[0]}.tsv")
     # When running concurrently, each job needs its own tmp subdir —
@@ -21,6 +21,8 @@ def _run_one(pdb_file, pdb_dir, output_dir, tmp_dir, db, isolate_tmp=False):
         job_tmp_dir,
         "--format-mode", "4"
     ]
+    if threads:
+        command += ["--threads", str(threads)]
 
     print(f"Running Foldseek for {pdb_file}...")
     try:
@@ -30,7 +32,7 @@ def _run_one(pdb_file, pdb_dir, output_dir, tmp_dir, db, isolate_tmp=False):
         print(f"Error running Foldseek for {pdb_file}: {e}")
 
 
-def run_foldseek_search(pdb_dir, output_dir, tmp_dir="tmp", db="pdb", max_workers=1):
+def run_foldseek_search(pdb_dir, output_dir, tmp_dir="tmp", db="pdb", max_workers=1, threads=None):
     """
     Runs Foldseek easy-search for all .pdb files in pdb_dir.
 
@@ -45,6 +47,9 @@ def run_foldseek_search(pdb_dir, output_dir, tmp_dir="tmp", db="pdb", max_worker
             searches (e.g. one small structure each) don't saturate all
             available CPUs on their own; keep total concurrent threads used
             by foldseek within the machine's CPU budget.
+        threads (int): Passed through as Foldseek's own --threads flag, so
+            the CPU budget given to this step can be capped explicitly
+            (e.g. when another CPU-bound process is running alongside it).
     """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -58,9 +63,9 @@ def run_foldseek_search(pdb_dir, output_dir, tmp_dir="tmp", db="pdb", max_worker
 
     if max_workers <= 1:
         for pdb_file in pdb_files:
-            _run_one(pdb_file, pdb_dir, output_dir, tmp_dir, db)
+            _run_one(pdb_file, pdb_dir, output_dir, tmp_dir, db, threads=threads)
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             list(executor.map(
-                lambda f: _run_one(f, pdb_dir, output_dir, tmp_dir, db, isolate_tmp=True), pdb_files
+                lambda f: _run_one(f, pdb_dir, output_dir, tmp_dir, db, isolate_tmp=True, threads=threads), pdb_files
             ))

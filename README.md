@@ -11,6 +11,8 @@ This repository contains a pipeline for predicting and analyzing protein functio
 - [Usage](#usage)
 - [Output](#output)
 - [Modular Design](#modular-design-and-extensibility)
+- [Contributing](#contributing)
+- [Citation](#citation)
 
 ## Overview
 
@@ -22,17 +24,17 @@ The pipeline is intended to run on a Unix-based HPC system using SLURM and virtu
 
 ### Prerequisites
 
-- Python 3.x
+- Python ≥ 3.10
 - SLURM scheduler
-- EggNOG-mapper v2
-- Foldseek
+- [EggNOG-mapper v2](https://github.com/eggnogdb/eggnog-mapper)
+- [Foldseek](https://github.com/steineggerlab/foldseek)
 - `psutil` ≥ 6.0
 - Python packages: `pandas`, `requests`, `biopython`, `pytest`
 
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/dmath21/ProtPen.git
+git clone https://github.com/ProtPen/ProtPen.git
 ```
 ## Pipeline Workflow
 
@@ -67,7 +69,15 @@ git clone https://github.com/dmath21/ProtPen.git
 
 ## Usage
 
-Example SLURM-based workflow for a sample dataset:
+All example SLURM scripts below live in [`sample_search/`](sample_search/); run `sbatch` from that directory (or adjust paths accordingly).
+
+A complete, ready-to-run pipeline for a sample dataset is provided as a single script, [`sample_run_pipeline.sh`](sample_search/sample_run_pipeline.sh), which runs all six steps below in the correct order (with EggNOG-mapper running in the background alongside the Foldseek branch):
+
+```bash
+sbatch sample_run_pipeline.sh
+```
+
+Alternatively, each step can be run as its own SLURM job, e.g. to rerun a single step or swap in a different tool:
 
 ```bash
 # Step 1: EggNOG-mapper
@@ -123,3 +133,11 @@ Remove the following line from your pipeline script:
 ```bash
 python -m protpen.cli_enrich -i consolidated_foldseek_results.tsv -o enriched_foldseek_results.tsv
 ```
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for how to report issues, propose new tools or modules, and submit pull requests.
+
+## Citation
+
+If you are using ProtPen for your work, please don't forget to cite us. While the publication is pending, please cite this GitHub repository.

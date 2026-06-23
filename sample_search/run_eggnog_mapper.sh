@@ -43,12 +43,15 @@ INPUT_FASTA="sample_proteins.fasta"       # Place this file in sample_search/
 OUTPUT_PREFIX="search_run"
 EGGNOG_DIR="eggnog_output"
 EGGNOG_TSV="eggnog_results.tsv"
+EMAPPER_PATH="/shared/rc/proteome/BASIL/eggnog-mapper/emapper.py" # Path to EggNOG-mapper's emapper.py
 
 python -m protpen.cli_eggnog \
   -i "${INPUT_FASTA}" \
   -o "${EGGNOG_DIR}" \
   -p "${OUTPUT_PREFIX}" \
-  -t "${EGGNOG_TSV}"
+  -t "${EGGNOG_TSV}" \
+  --emapper_path "${EMAPPER_PATH}" \
+  --cpu "${SLURM_CPUS_PER_TASK:-8}"
 if [ $? -ne 0 ]; then
     echo "EggNOG-mapper failed."
     exit 1

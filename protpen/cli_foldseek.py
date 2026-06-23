@@ -11,9 +11,12 @@ def main():
     parser.add_argument("--max_workers", type=int, default=1,
                          help="Number of Foldseek searches to run concurrently "
                               "(only helps if individual searches don't saturate all CPUs alone).")
+    parser.add_argument("--threads", type=int, default=None,
+                         help="Passed through as Foldseek's own --threads flag.")
     args = parser.parse_args()
 
-    run_foldseek_search(args.pdb_dir, args.output_dir, args.tmp_dir, args.db, max_workers=args.max_workers)
+    run_foldseek_search(args.pdb_dir, args.output_dir, args.tmp_dir, args.db,
+                         max_workers=args.max_workers, threads=args.threads)
 
 if __name__ == "__main__":
     main()
