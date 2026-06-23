@@ -7,11 +7,6 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
-# Latest known AlphaFoldDB model version. Checked first (then descending) so
-# the common case finds a hit on the first HEAD request instead of scanning
-# up from v1.
-LATEST_ALPHAFOLD_VERSION = 4
-
 
 def extract_protein_ids_from_fasta(file_in):
     protein_ids = set()
@@ -46,28 +41,48 @@ def extract_alphafold_id(data):
     return ''
 
 
-def download_alphafold_pdb(alphafold_id, output_folder):
+def download_alphafold_pdb(alphafold_id, output_folder, batch_size=10, max_version=100):
+    """
+    Finds and downloads the highest-versioned AlphaFoldDB structure for
+    alphafold_id. The actual "latest" version number varies over time and
+    across entries (e.g. v4 vs v6), so instead of guessing a version or
+    scanning 1..100 sequentially (slow, and pathological for IDs with no
+    structure at all), versions are probed in small concurrent batches and
+    we stop at the first batch containing a hit.
+    """
     pdb_path = os.path.join(output_folder, f"{alphafold_id}.pdb")
     base_url = f"https://alphafold.ebi.ac.uk/files/AF-{alphafold_id}-F1-model_v"
 
-    # Try the latest known version first, then fall back to scanning the
-    # rest. Almost every entry resolves on versions, while a full
-    # ascending 1-100 scan made this the slowest part of the pipeline.
-    versions = list(range(LATEST_ALPHAFOLD_VERSION, 0, -1)) + \
-        [v for v in range(1, 101) if v > LATEST_ALPHAFOLD_VERSION]
-
-    for version in versions:
+    def check_version(version):
         url = base_url + str(version) + ".pdb"
-        response = requests.head(url)
-        if response.status_code == 200:
-            logging.info(f"Found structure for {alphafold_id} (v{version}). Downloading...")
-            response = requests.get(url)
-            os.makedirs(output_folder, exist_ok=True)
-            with open(pdb_path, "wb") as f:
-                f.write(response.content)
-            return pdb_path
-    logging.warning(f"No structure found for {alphafold_id} in versions 1-100.")
-    return None
+        try:
+            response = requests.head(url)
+        except requests.RequestException:
+            return None
+        return version if response.status_code == 200 else None
+
+    found_version = None
+    start = 1
+    while start <= max_version:
+        batch = range(start, min(start + batch_size, max_version + 1))
+        with ThreadPoolExecutor(max_workers=batch_size) as executor:
+            hits = [v for v in executor.map(check_version, batch) if v is not None]
+        if hits:
+            found_version = max(hits)
+            break
+        start += batch_size
+
+    if found_version is None:
+        logging.warning(f"No structure found for {alphafold_id} in versions 1-{max_version}.")
+        return None
+
+    url = base_url + str(found_version) + ".pdb"
+    logging.info(f"Found structure for {alphafold_id} (v{found_version}). Downloading...")
+    response = requests.get(url)
+    os.makedirs(output_folder, exist_ok=True)
+    with open(pdb_path, "wb") as f:
+        f.write(response.content)
+    return pdb_path
 
 
 def _process_protein(pid, output_folder):
