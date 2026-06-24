@@ -7,6 +7,7 @@ from protpen import enrich_utils
 from unittest import mock
 import csv
 
+
 def test_get_uniprot_info_reads_cached_json(tmp_path):
     # Create mock UniProt JSON
     uniprot_id = "P12345"
@@ -20,14 +21,14 @@ def test_get_uniprot_info_reads_cached_json(tmp_path):
             {
                 "database": "INTERPRO",
                 "id": "IPR000001",
-                "properties": [{"key": "EntryName", "value": "IPR_MOCK"}]
+                "properties": [{"key": "EntryName", "value": "IPR_MOCK"}],
             },
             {
                 "database": "SUPFAM",
                 "id": "SF000001",
-                "properties": [{"key": "EntryName", "value": "SF_MOCK"}]
-            }
-        ]
+                "properties": [{"key": "EntryName", "value": "SF_MOCK"}],
+            },
+        ],
     }
     with open(json_dir / f"{uniprot_id}.json", "w") as f:
         json.dump(data, f)
@@ -51,7 +52,12 @@ def test_enrich_tsv(tmp_path):
     with open(input_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=["query", "target"], delimiter="\t")
         writer.writeheader()
-        writer.writerow({"query": "Q1", "target": "4is4-assembly1.cif.gz_H||4mdz-assembly1.cif.gz_A"})
+        writer.writerow(
+            {
+                "query": "Q1",
+                "target": "4is4-assembly1.cif.gz_H||4mdz-assembly1.cif.gz_A",
+            }
+        )
         writer.writerow({"query": "Q2", "target": "5abc-assembly1.cif.gz_A"})
 
     pair_to_info = {
@@ -78,14 +84,12 @@ def test_enrich_tsv(tmp_path):
 def test_get_uniprot_info_mocked(mock_get, tmp_path):
     sample_response = {
         "proteinDescription": {
-            "recommendedName": {
-                "fullName": {"value": "Mock Protein"}
-            }
+            "recommendedName": {"fullName": {"value": "Mock Protein"}}
         },
         "uniProtKBCrossReferences": [
             {"database": "InterPro", "id": "IPR9999"},
-            {"database": "SUPFAM", "id": "SF9999"}
-        ]
+            {"database": "SUPFAM", "id": "SF9999"},
+        ],
     }
     mock_get.return_value.status_code = 200
     mock_get.return_value.json.return_value = sample_response
@@ -94,5 +98,3 @@ def test_get_uniprot_info_mocked(mock_get, tmp_path):
     assert result["description"] == "Mock Protein"
     assert result["interpro"] == "IPR9999"
     assert result["supfam"] == "SF9999"
-
-

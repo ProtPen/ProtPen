@@ -4,16 +4,13 @@ import json
 from unittest.mock import patch, MagicMock
 from protpen import downloader
 
+
 # Test cases for the downloader module
 # Test for download_structures_from_fasta function
 @patch("protpen.downloader.requests.get")
 @patch("protpen.downloader.requests.head")
 @patch("protpen.downloader.extract_alphafold_id")
-def test_download_structures_from_fasta(
-    mock_extract_af_id,
-    mock_head,
-    mock_get
-):
+def test_download_structures_from_fasta(mock_extract_af_id, mock_head, mock_get):
     mock_extract_af_id.return_value = "AF-P12345-F1"
     mock_head.return_value.status_code = 200
     mock_get.return_value.content = b"MOCK_PDB"
@@ -25,22 +22,27 @@ def test_download_structures_from_fasta(
 
         # Write FASTA file
         with open(fasta_path, "w") as f:
-            f.write(""">sp|P12345|AATM_RABIT Aspartate aminotransferase, mitochondrial OS=Oryctolagus cuniculus OX=9986 GN=GOT2 PE=1 SV=2\nMALLHSARVLSGVASAFHPGLAAAASARASSWWAHVEMGPPDPILGVTEAYKRDTNSKKM
+            f.write(
+                """>sp|P12345|AATM_RABIT Aspartate aminotransferase, mitochondrial OS=Oryctolagus cuniculus OX=9986 GN=GOT2 PE=1 SV=2\nMALLHSARVLSGVASAFHPGLAAAASARASSWWAHVEMGPPDPILGVTEAYKRDTNSKKM
     NLGVGAYRDDNGKPYVLPSVRKAEAQIAAKGLDKEYLPIGGLAEFCRASAELALGENSEV
     VKSGRFVTVQTISGTGALRIGASFLQRFFKFSRDVFLPKPSWGNHTPIFRDAGMQLQSYR
     YYDPKTCGFDFTGALEDISKIPEQSVLLLHACAHNPTGVDPRPEQWKEIATVVKKRNLFA
     FFDMAYQGFASGDGDKDAWAVRHFIEQGINVCLCQSYAKNMGLYGERVGAFTVICKDADE
     AKRVESQLKILIRPMYSNPPIHGARIASTILTSPDLRKQWLQEVKGMADRIIGMRTQLVS
     NLKKEGSTHSWQHITDQIGMFCFTGLKPEQVERLTKEFSIYMTKDGRISVAGVTSGNVGY
-    LAHAIHQVTK\n""")
+    LAHAIHQVTK\n"""
+            )
 
         # Manually write the fake UniProt JSON file
         with open(json_path, "w") as f:
-            json.dump({
-                "uniProtKBCrossReferences": [
-                    {"database": "AlphaFoldDB", "id": "AF-P12345-F1"}
-                ]
-            }, f)
+            json.dump(
+                {
+                    "uniProtKBCrossReferences": [
+                        {"database": "AlphaFoldDB", "id": "AF-P12345-F1"}
+                    ]
+                },
+                f,
+            )
 
         # Run function
         result = downloader.download_structures_from_fasta(fasta_path, tmpdir)
@@ -53,7 +55,8 @@ def test_download_structures_from_fasta(
 
         mock_extract_af_id.assert_called_once()
 
-# Test for extract_protein_ids_from_fasta function 
+
+# Test for extract_protein_ids_from_fasta function
 def test_extract_protein_ids_from_fasta():
     fasta_content = """>sp|P12345|AATM_RABIT Aspartate aminotransferase, mitochondrial OS=Oryctolagus cuniculus OX=9986 GN=GOT2 PE=1 SV=2
 MALLHSARVLSGVASAFHPGLAAAASARASSWWAHVEMGPPDPILGVTEAYKRDTNSKKM
@@ -100,6 +103,8 @@ def test_download_uniprot_json_success(mock_get):
         with open(out_path) as f:
             data = json.load(f)
         assert data == {"mock": "data"}
+
+
 @patch("protpen.downloader.requests.get")
 
 # Test for download_uniprot_json failure

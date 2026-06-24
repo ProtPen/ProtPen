@@ -7,7 +7,10 @@ from protpen import foldseek
 
 @patch("protpen.foldseek.subprocess.run")
 def test_run_foldseek_search_invokes_command(mock_subprocess):
-    with tempfile.TemporaryDirectory() as pdb_dir, tempfile.TemporaryDirectory() as out_dir:
+    with (
+        tempfile.TemporaryDirectory() as pdb_dir,
+        tempfile.TemporaryDirectory() as out_dir,
+    ):
         # Create fake PDB file
         pdb_file = os.path.join(pdb_dir, "sample.pdb")
         with open(pdb_file, "w") as f:
@@ -23,7 +26,8 @@ def test_run_foldseek_search_invokes_command(mock_subprocess):
             "mock_db",
             output_file,
             "tmp_test",
-            "--format-mode", "4"
+            "--format-mode",
+            "4",
         ]
 
         mock_subprocess.assert_called_once_with(expected_cmd, check=True)
