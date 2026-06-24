@@ -25,10 +25,27 @@ def convert_to_tsv(output_dir, output_prefix, output_file):
                 data.append(line.strip().split("\t"))
 
     columns = [
-        "query", "seed_ortholog", "evalue", "score", "eggNOG_OGs", "max_annot_lvl",
-        "COG_category", "Description", "Preferred_name", "GOs", "EC", "KEGG_ko",
-        "KEGG_Pathway", "KEGG_Module", "KEGG_Reaction", "KEGG_rclass", "BRITE",
-        "KEGG_TC", "CAZy", "BiGG_Reaction", "PFAMs"
+        "query",
+        "seed_ortholog",
+        "evalue",
+        "score",
+        "eggNOG_OGs",
+        "max_annot_lvl",
+        "COG_category",
+        "Description",
+        "Preferred_name",
+        "GOs",
+        "EC",
+        "KEGG_ko",
+        "KEGG_Pathway",
+        "KEGG_Module",
+        "KEGG_Reaction",
+        "KEGG_rclass",
+        "BRITE",
+        "KEGG_TC",
+        "CAZy",
+        "BiGG_Reaction",
+        "PFAMs",
     ]
     df = pd.DataFrame(data, columns=columns)
     df.to_csv(output_file, index=False, sep="\t")

@@ -6,7 +6,8 @@ import re
 import time
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+
+logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
 
 def _request_with_retry(method, url, retries=5, backoff=1.0, **kwargs):
@@ -29,7 +30,7 @@ def _request_with_retry(method, url, retries=5, backoff=1.0, **kwargs):
                 return response
             last_exc = None
         if attempt < retries - 1:
-            time.sleep(backoff * (2 ** attempt))
+            time.sleep(backoff * (2**attempt))
     if last_exc:
         raise last_exc
     return response
@@ -66,10 +67,10 @@ def download_uniprot_json(uniprot_id, output_file):
 
 
 def extract_alphafold_id(data):
-    for ref in data.get('uniProtKBCrossReferences', []):
-        if ref.get('database') == 'AlphaFoldDB':
-            return ref.get('id', '')
-    return ''
+    for ref in data.get("uniProtKBCrossReferences", []):
+        if ref.get("database") == "AlphaFoldDB":
+            return ref.get("id", "")
+    return ""
 
 
 def download_alphafold_pdb(alphafold_id, output_folder, batch_size=10, max_version=100):
@@ -104,15 +105,21 @@ def download_alphafold_pdb(alphafold_id, output_folder, batch_size=10, max_versi
         start += batch_size
 
     if found_version is None:
-        logging.warning(f"No structure found for {alphafold_id} in versions 1-{max_version}.")
+        logging.warning(
+            f"No structure found for {alphafold_id} in versions 1-{max_version}."
+        )
         return None
 
     url = base_url + str(found_version) + ".pdb"
-    logging.info(f"Found structure for {alphafold_id} (v{found_version}). Downloading...")
+    logging.info(
+        f"Found structure for {alphafold_id} (v{found_version}). Downloading..."
+    )
     try:
         response = _request_with_retry("get", url)
     except requests.exceptions.RequestException as exc:
-        logging.error(f"Failed to download structure for {alphafold_id} after retries: {exc}")
+        logging.error(
+            f"Failed to download structure for {alphafold_id} after retries: {exc}"
+        )
         return None
     os.makedirs(output_folder, exist_ok=True)
     with open(pdb_path, "wb") as f:
@@ -154,7 +161,9 @@ def _process_protein_impl(pid, output_folder):
         logging.warning(f"No AlphaFold ID found in JSON for {pid}")
 
     if not pdb:
-        logging.info(f"Attempting fallback: using UniProt ID {pid} to download structure")
+        logging.info(
+            f"Attempting fallback: using UniProt ID {pid} to download structure"
+        )
         pdb = download_alphafold_pdb(pid, output_folder)
 
     if pdb:
@@ -176,7 +185,10 @@ def download_structures_from_fasta(file_in, output_folder="pdb_files", max_worke
     # so fan them out across threads instead of downloading one protein
     # at a time.
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_pid = {executor.submit(_process_protein, pid, output_folder): pid for pid in protein_ids}
+        future_to_pid = {
+            executor.submit(_process_protein, pid, output_folder): pid
+            for pid in protein_ids
+        }
         for future in as_completed(future_to_pid):
             pid = future_to_pid[future]
             try:

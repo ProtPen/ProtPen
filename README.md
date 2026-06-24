@@ -35,7 +35,32 @@ The pipeline is intended to run on a Unix-based HPC system using SLURM and virtu
 
 ```bash
 git clone https://github.com/ProtPen/ProtPen.git
+cd ProtPen
 ```
+
+### Install
+
+EggNOG-mapper and Foldseek are external tools and must be installed separately (see the links above); everything else is installed via pip.
+
+It's recommended to install into a virtual environment:
+
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+Install ProtPen and its Python dependencies (`pandas`, `requests`, `biopython`, `psutil`):
+
+```bash
+pip install -e .
+```
+
+To also install the test/dev dependencies (`pytest`, `black`):
+
+```bash
+pip install -e ".[test]"
+```
+
 ## Pipeline Workflow
 
 1. **Run EggNOG-mapper** (`cli_eggnog.py`)  

@@ -1,15 +1,20 @@
-#protpen/foldseek.py
+# protpen/foldseek.py
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
-def _run_one(pdb_file, pdb_dir, output_dir, tmp_dir, db, isolate_tmp=False, threads=None):
+
+def _run_one(
+    pdb_file, pdb_dir, output_dir, tmp_dir, db, isolate_tmp=False, threads=None
+):
     pdb_path = os.path.join(pdb_dir, pdb_file)
     output_file = os.path.join(output_dir, f"{os.path.splitext(pdb_file)[0]}.tsv")
     # When running concurrently, each job needs its own tmp subdir —
     # foldseek's tmp directory layout isn't safe to share between
     # simultaneous easy-search invocations.
-    job_tmp_dir = os.path.join(tmp_dir, os.path.splitext(pdb_file)[0]) if isolate_tmp else tmp_dir
+    job_tmp_dir = (
+        os.path.join(tmp_dir, os.path.splitext(pdb_file)[0]) if isolate_tmp else tmp_dir
+    )
     if isolate_tmp:
         os.makedirs(job_tmp_dir, exist_ok=True)
     command = [
@@ -19,7 +24,8 @@ def _run_one(pdb_file, pdb_dir, output_dir, tmp_dir, db, isolate_tmp=False, thre
         db,
         output_file,
         job_tmp_dir,
-        "--format-mode", "4"
+        "--format-mode",
+        "4",
     ]
     if threads:
         command += ["--threads", str(threads)]
@@ -32,7 +38,9 @@ def _run_one(pdb_file, pdb_dir, output_dir, tmp_dir, db, isolate_tmp=False, thre
         print(f"Error running Foldseek for {pdb_file}: {e}")
 
 
-def run_foldseek_search(pdb_dir, output_dir, tmp_dir="tmp", db="pdb", max_workers=1, threads=None):
+def run_foldseek_search(
+    pdb_dir, output_dir, tmp_dir="tmp", db="pdb", max_workers=1, threads=None
+):
     """
     Runs Foldseek easy-search for all .pdb files in pdb_dir.
 
@@ -66,6 +74,17 @@ def run_foldseek_search(pdb_dir, output_dir, tmp_dir="tmp", db="pdb", max_worker
             _run_one(pdb_file, pdb_dir, output_dir, tmp_dir, db, threads=threads)
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            list(executor.map(
-                lambda f: _run_one(f, pdb_dir, output_dir, tmp_dir, db, isolate_tmp=True, threads=threads), pdb_files
-            ))
+            list(
+                executor.map(
+                    lambda f: _run_one(
+                        f,
+                        pdb_dir,
+                        output_dir,
+                        tmp_dir,
+                        db,
+                        isolate_tmp=True,
+                        threads=threads,
+                    ),
+                    pdb_files,
+                )
+            )

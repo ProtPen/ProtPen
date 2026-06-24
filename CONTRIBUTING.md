@@ -22,12 +22,36 @@ Because each pipeline step communicates only through file-based inputs/outputs (
 
 If you're not sure whether an idea fits, feel free to open an issue to discuss it first.
 
+## Tests and Coding Style
+
+Install the test/dev dependencies first:
+
+```bash
+pip install -e ".[test]"
+```
+
+**Tests** are written with `pytest` and live under `tests/`. Run the suite with:
+
+```bash
+pytest tests/ --ignore=tests/test_eggnog.py --ignore=tests/test_foldseek.py
+```
+
+`test_eggnog.py` and `test_foldseek.py` are excluded because they require EggNOG-mapper and Foldseek to be installed locally; CI runs the same exclusion (see [`.github/workflows/tests.yml`](.github/workflows/tests.yml)). If your change touches `eggnog.py` or `foldseek.py`, please also run those two files' tests locally if you have the tools installed.
+
+**Coding style** is enforced with [`black`](https://black.readthedocs.io/). Format your changes before opening a PR:
+
+```bash
+black protpen/ tests/
+```
+
+CI checks formatting with `black --check protpen/ tests/` and will fail if any file isn't formatted — make sure to run `black` locally first.
+
 ## Pull Request Guidelines
 
 - Keep pull requests focused on a single change where possible to make review easier.
-- Add or update tests for any behavior you change.
+- Add or update tests for any behavior you change, and make sure tests pass and code is formatted (see [Tests and Coding Style](#tests-and-coding-style) above) — CI checks both on every PR.
 - Update relevant documentation (README, docstrings, SLURM script comments) alongside code changes.
-- Be ready to discuss and iterate on feedback. Ccode review is a normal and friendly part of the process.
+- Be ready to discuss and iterate on feedback. Code review is a normal and friendly part of the process.
 
 ## Code of Conduct
 

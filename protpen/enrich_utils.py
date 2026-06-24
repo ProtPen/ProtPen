@@ -12,6 +12,7 @@ from itertools import islice
 # UniProt Metadata Functions
 # ----------------------------
 
+
 def download_uniprot_json(uniprot_id, output_file):
     url = f"https://rest.uniprot.org/uniprotkb/{uniprot_id}.json"
     response = requests.get(url)
@@ -21,6 +22,7 @@ def download_uniprot_json(uniprot_id, output_file):
         print(f"Downloaded UniProt JSON for {uniprot_id}")
     else:
         print(f"Failed to download UniProt JSON for {uniprot_id}")
+
 
 def get_uniprot_info(uniprot_id, json_dir="uniprot_json_enrich"):
     # exist_ok=True avoids a race when called concurrently from multiple
@@ -37,10 +39,12 @@ def get_uniprot_info(uniprot_id, json_dir="uniprot_json_enrich"):
     else:
         print(f"Unable to retrieve JSON for {uniprot_id}")
         return {"description": "n/a", "interpro": "n/a", "supfam": "n/a"}
-    
+
     info = {"description": "", "interpro": [], "supfam": []}
     try:
-        info["description"] = data["proteinDescription"]["recommendedName"]["fullName"]["value"]
+        info["description"] = data["proteinDescription"]["recommendedName"]["fullName"][
+            "value"
+        ]
     except KeyError:
         try:
             submission_names = data["proteinDescription"].get("submissionNames", [])
@@ -60,7 +64,7 @@ def get_uniprot_info(uniprot_id, json_dir="uniprot_json_enrich"):
                 break
         if not entry_name:
             entry_name = ref.get("id", "")
-        
+
         if db == "INTERPRO":
             info["interpro"].append(entry_name)
         elif db == "SUPFAM":
@@ -70,9 +74,11 @@ def get_uniprot_info(uniprot_id, json_dir="uniprot_json_enrich"):
     info["supfam"] = ", ".join(info["supfam"]) if info["supfam"] else "n/a"
     return info
 
+
 # ----------------------------
 # RCSB Utilities
 # ----------------------------
+
 
 def parse_pdb_chain(raw_id, verbose_log=False):
     """
@@ -91,7 +97,9 @@ def parse_pdb_chain(raw_id, verbose_log=False):
         return (None, None), "missing 'assemblyX.cif.gz'"
 
     # Match format with optional '-2', '-3', etc. after chain ID
-    match = re.match(r"([0-9a-zA-Z]{4})-assembly\d+\.cif\.gz_([A-Za-z0-9]+)(-\d+)?$", raw_id)
+    match = re.match(
+        r"([0-9a-zA-Z]{4})-assembly\d+\.cif\.gz_([A-Za-z0-9]+)(-\d+)?$", raw_id
+    )
     if match:
         pdb_id = match.group(1).lower()
         chain_id = match.group(2)
@@ -123,8 +131,12 @@ def get_uniprot_id_from_rcsb(pdb_id, chain_id):
         data = response.json()
         entities = data["data"]["entries"][0]["polymer_entities"]
         for entity in entities:
-            chains = entity["rcsb_polymer_entity_container_identifiers"].get("auth_asym_ids", [])
-            refs = entity["rcsb_polymer_entity_container_identifiers"].get("reference_sequence_identifiers", [])
+            chains = entity["rcsb_polymer_entity_container_identifiers"].get(
+                "auth_asym_ids", []
+            )
+            refs = entity["rcsb_polymer_entity_container_identifiers"].get(
+                "reference_sequence_identifiers", []
+            )
             if chain_id in chains:
                 for ref in refs:
                     if ref["database_name"] == "UniProt":
@@ -133,9 +145,11 @@ def get_uniprot_id_from_rcsb(pdb_id, chain_id):
         print(f"[ERROR] Failed to query RCSB for {pdb_id}_{chain_id}: {e}")
     return None
 
+
 # ----------------------------
 # Enrichment Function
 # ----------------------------
+
 
 def enrich_tsv(input_tsv, output_tsv, pair_to_info=None, log_failed=True):
     """
@@ -146,7 +160,10 @@ def enrich_tsv(input_tsv, output_tsv, pair_to_info=None, log_failed=True):
     """
     failed_log = []
 
-    with open(input_tsv, newline="") as infile, open(output_tsv, "w", newline="") as outfile:
+    with (
+        open(input_tsv, newline="") as infile,
+        open(output_tsv, "w", newline="") as outfile,
+    ):
         reader = csv.DictReader(infile, delimiter="\t")
         new_fields = ["UniProt_Description", "UniProt_InterPro", "UniProt_SUPFAM"]
         fieldnames = reader.fieldnames + new_fields
@@ -168,21 +185,42 @@ def enrich_tsv(input_tsv, output_tsv, pair_to_info=None, log_failed=True):
                     info = {"description": "n/a", "interpro": "n/a", "supfam": "n/a"}
 
                 elif pair_to_info:
-                    info = pair_to_info.get((pdb_id, chain_id), {"description": "n/a", "interpro": "n/a", "supfam": "n/a"})
+                    info = pair_to_info.get(
+                        (pdb_id, chain_id),
+                        {"description": "n/a", "interpro": "n/a", "supfam": "n/a"},
+                    )
                     if info["description"] == "n/a":
-                        failed_log.append({"token": token, "reason": f"uniprot_info_missing ({pdb_id}_{chain_id})"})
+                        failed_log.append(
+                            {
+                                "token": token,
+                                "reason": f"uniprot_info_missing ({pdb_id}_{chain_id})",
+                            }
+                        )
 
                 else:
                     uniprot_id = get_uniprot_id_from_rcsb(pdb_id, chain_id)
                     if not uniprot_id:
                         print(f"[WARN] No UniProt ID for {pdb_id}_{chain_id}")
-                        failed_log.append({"token": token, "reason": f"uniprot_not_found"})
-                        info = {"description": "n/a", "interpro": "n/a", "supfam": "n/a"}
+                        failed_log.append(
+                            {"token": token, "reason": f"uniprot_not_found"}
+                        )
+                        info = {
+                            "description": "n/a",
+                            "interpro": "n/a",
+                            "supfam": "n/a",
+                        }
                     else:
                         info = get_uniprot_info(uniprot_id)
                         if info["description"] == "n/a":
-                            print(f"[WARN] UniProt ID {uniprot_id} retrieved but no metadata found")
-                            failed_log.append({"token": token, "reason": f"uniprot_no_metadata ({uniprot_id})"})
+                            print(
+                                f"[WARN] UniProt ID {uniprot_id} retrieved but no metadata found"
+                            )
+                            failed_log.append(
+                                {
+                                    "token": token,
+                                    "reason": f"uniprot_no_metadata ({uniprot_id})",
+                                }
+                            )
 
                 descs.append(info.get("description", "n/a"))
                 interpros.append(info.get("interpro", "n/a"))
@@ -194,7 +232,7 @@ def enrich_tsv(input_tsv, output_tsv, pair_to_info=None, log_failed=True):
             writer.writerow(row)
 
     if log_failed and failed_log:
-    # Save failure log to logs/ directory
+        # Save failure log to logs/ directory
         log_dir = "logs"
         os.makedirs(log_dir, exist_ok=True)
         base_name = os.path.splitext(os.path.basename(output_tsv))[0]
@@ -206,14 +244,14 @@ def enrich_tsv(input_tsv, output_tsv, pair_to_info=None, log_failed=True):
         print(f"[INFO] Wrote {len(failed_log)} failed lookups to {failed_log_file}")
 
 
-
-
 # ----------------------------
 # Optional CLI
 # ----------------------------
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Enrich Foldseek TSV results with UniProt metadata from PDB+chain matches.")
+    parser = argparse.ArgumentParser(
+        description="Enrich Foldseek TSV results with UniProt metadata from PDB+chain matches."
+    )
     parser.add_argument("-i", "--input", required=True, help="Input TSV from Foldseek")
     parser.add_argument("-o", "--output", required=True, help="Output enriched TSV")
     args = parser.parse_args()

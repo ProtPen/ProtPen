@@ -8,6 +8,7 @@ import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from protpen import enrich_utils
 
+
 def run_enrichment_pipeline(input_tsv, output_tsv, max_workers=16):
     # Step 1: Extract all unique (pdb_id, chain_id) pairs from Foldseek target column
     pdb_chain_pairs = set()
@@ -34,7 +35,10 @@ def run_enrichment_pipeline(input_tsv, output_tsv, max_workers=16):
     pair_to_uniprot = {}
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_pair = {
-            executor.submit(enrich_utils.get_uniprot_id_from_rcsb, pdb_id, chain_id): (pdb_id, chain_id)
+            executor.submit(enrich_utils.get_uniprot_id_from_rcsb, pdb_id, chain_id): (
+                pdb_id,
+                chain_id,
+            )
             for pdb_id, chain_id in sorted(pdb_chain_pairs)
         }
         for future in as_completed(future_to_pair):
@@ -67,23 +71,38 @@ def run_enrichment_pipeline(input_tsv, output_tsv, max_workers=16):
     # Step 4: Fallback for any pair that couldn't be resolved
     for pair in pdb_chain_pairs:
         if pair not in pair_to_info:
-            pair_to_info[pair] = {"description": "n/a", "interpro": "n/a", "supfam": "n/a"}
+            pair_to_info[pair] = {
+                "description": "n/a",
+                "interpro": "n/a",
+                "supfam": "n/a",
+            }
 
     # Step 5: Enrich and write TSV
     print(f"[INFO] Writing enriched TSV to {output_tsv}")
     enrich_utils.enrich_tsv(input_tsv, output_tsv, pair_to_info=pair_to_info)
     print("[INFO] Enrichment complete.")
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Enrich Foldseek TSVs using PDB+chain-specific UniProt metadata from RCSB GraphQL."
     )
-    parser.add_argument("-i", "--input", required=True, help="Input Foldseek TSV (with target column)")
-    parser.add_argument("-o", "--output", required=True, help="Output TSV with UniProt enrichment")
-    parser.add_argument("--max_workers", type=int, default=16, help="Number of concurrent lookup threads")
+    parser.add_argument(
+        "-i", "--input", required=True, help="Input Foldseek TSV (with target column)"
+    )
+    parser.add_argument(
+        "-o", "--output", required=True, help="Output TSV with UniProt enrichment"
+    )
+    parser.add_argument(
+        "--max_workers",
+        type=int,
+        default=16,
+        help="Number of concurrent lookup threads",
+    )
     args = parser.parse_args()
 
     run_enrichment_pipeline(args.input, args.output, max_workers=args.max_workers)
+
 
 if __name__ == "__main__":
     main()

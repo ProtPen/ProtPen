@@ -1,4 +1,4 @@
-#tests/test_eggnog.py
+# tests/test_eggnog.py
 import os
 import tempfile
 import pandas as pd
@@ -13,7 +13,9 @@ def test_run_eggnog_mapper_calls_subprocess(mock_subproc):
         with open(fasta_path, "w") as f:
             f.write(">P1\nMAKAKAQWERTY")
 
-        eggnog.run_eggnog_mapper(fasta_path, tmpdir, "test_prefix", emapper_path="mock_emapper.py")
+        eggnog.run_eggnog_mapper(
+            fasta_path, tmpdir, "test_prefix", emapper_path="mock_emapper.py"
+        )
 
         expected_out = os.path.join(tmpdir, "test_prefix")
         mock_subproc.assert_called_once()
