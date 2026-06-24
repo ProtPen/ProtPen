@@ -23,8 +23,11 @@ def download_uniprot_json(uniprot_id, output_file):
         print(f"Failed to download UniProt JSON for {uniprot_id}")
 
 def get_uniprot_info(uniprot_id, json_dir="uniprot_json_enrich"):
-    if not os.path.exists(json_dir):
-        os.makedirs(json_dir)
+    # exist_ok=True avoids a race when called concurrently from multiple
+    # threads (cli_enrich.py now fetches metadata for several UniProt IDs
+    # in parallel) where two threads pass the exists() check before either
+    # has created the directory.
+    os.makedirs(json_dir, exist_ok=True)
     output_file = os.path.join(json_dir, f"{uniprot_id}.json")
     if not os.path.exists(output_file):
         download_uniprot_json(uniprot_id, output_file)
