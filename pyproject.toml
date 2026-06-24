@@ -1,2 +1,46 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "protpen"
+version = "1.0.0"
+description = "ProtPen: Protein function prediction pipeline using sequence and structure-based tools"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Diya Mathai", email = "dtm3426@rit.edu" },
+    { name = "Stefan Schulze" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests",
+    "pandas",
+    "biopython",
+    "psutil>=6.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest", "black"]
+
+[project.urls]
+Repository = "https://github.com/ProtPen/ProtPen"
+
+[project.scripts]
+cli-enrich = "protpen.cli_enrich:main"
+cli-merge = "protpen.cli_merge:main"
+cli-eggmap = "protpen.cli_eggnog:main"
+cli-foldseek = "protpen.cli_foldseek:main"
+cli-consolidate-foldseek = "protpen.cli_consolidate_foldseek:main"
+cli-download = "protpen.cli_download:main"
+
+[tool.setuptools]
+packages = ["protpen"]
+
 [tool.black]
 target-version = ["py310"]
