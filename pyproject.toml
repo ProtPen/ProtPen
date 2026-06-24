@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=64"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "protpen"
@@ -10,8 +10,8 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 authors = [
-    { name = "Diya Mathai", email = "dtm3426@rit.edu" },
-    { name = "Stefan Schulze" },
+    { name = "Diya Mathai" },
+    { name = "Stefan Schulze", email = "stefan.schulze@rit.edu" },
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -31,15 +31,7 @@ test = ["pytest", "black"]
 [project.urls]
 Repository = "https://github.com/ProtPen/ProtPen"
 
-[project.scripts]
-cli-enrich = "protpen.cli_enrich:main"
-cli-merge = "protpen.cli_merge:main"
-cli-eggmap = "protpen.cli_eggnog:main"
-cli-foldseek = "protpen.cli_foldseek:main"
-cli-consolidate-foldseek = "protpen.cli_consolidate_foldseek:main"
-cli-download = "protpen.cli_download:main"
-
-[tool.setuptools]
+[tool.hatch.build.targets.wheel]
 packages = ["protpen"]
 
 [tool.black]
